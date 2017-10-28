@@ -17,12 +17,13 @@ public class WorkerRunnable implements Runnable, Config {
 	private Connection conn = null;
 	private PreparedStatement prep = null;
 	private Writer out = null;
+	private String replicationSlot = "";
 
 	public WorkerRunnable(long sessionEndTime) {
 		this.sessionEndTime = sessionEndTime;
 		this.conn = Client.getConnection();
-		String replicationSlot = "replication_slot_"+System.getProperty("replicationSlotNumber");
-		String query = "SELECT data FROM pg_logical_slot_peek_changes('"+ replicationSlot +"', NULL, 1000)";
+		replicationSlot = "replication_slot_" + System.getProperty("replicationSlotNumber");
+		String query = "SELECT data FROM pg_logical_slot_peek_changes('" + replicationSlot + "', NULL, 1000)";
 		try {
 			prep = conn.prepareStatement(query);
 		} catch (SQLException e) {
@@ -59,7 +60,23 @@ public class WorkerRunnable implements Runnable, Config {
 	private void writeLocalFile(ResultSet rs) {
 		try {
 			while (rs.next()) {
-				out.append(rs.getString(1)+"\n");
+				String data = rs.getString(1);
+				if (replicationSlot.equals("replication_slot_1")) {
+					for (String tableName : replication_slot_1) {
+						if (data.contains(tableName)) {
+							out.append(data + "\n");
+							break;
+						}
+
+					}
+				} else if (replicationSlot.equals("replication_slot_2")) {
+					for (String tableName : replication_slot_2) {
+						if (data.contains(tableName)) {
+							out.append(data + "\n");
+							break;
+						}
+					}
+				}
 			}
 			out.flush();
 		} catch (SQLException | IOException e) {
